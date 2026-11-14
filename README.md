@@ -137,5 +137,5 @@ Redirects are followed, and their time counts. Proxies from `HTTP_PROXY` and `HT
 uv sync
 uv run ruff check
 uv run ruff format --check
-uv run mypy src
+uv run mypy
 ```
