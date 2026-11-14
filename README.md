@@ -110,6 +110,38 @@ The tool sends `Cache-Control: no-cache`, but a CDN may still answer from its ca
 With small files, connection setup takes most of the time and the result comes out well below the link's
 bandwidth. Use a file of a few megabytes or more if bandwidth is what you want to know.
 
+## Comparison with curl
+
+To check the numbers, the same 10 MiB file was downloaded with `download-speed` and with curl, ten
+requests per tool, in three alternating rounds so that changes in the network affect every tool equally.
+curl ran once with `--http1.1`, which is what `urllib` speaks, and once with its defaults, which picked
+HTTP/2. For curl the speed was computed the same way, total bytes over total time.
+
+| Round | download-speed | curl --http1.1 | curl, HTTP/2 |
+|---|---|---|---|
+| 1 | 127.60 | 131.38 | 125.87 |
+| 2 | 131.90 | 125.91 | 127.76 |
+| 3 | 123.96 | 123.33 | 132.01 |
+
+Speeds are in Mbit/s. Every run downloaded exactly 104857600 bytes, and the average request time stayed
+between 0.64 and 0.68 s for all three. The tools differ by 1 to 2%, less than the spread between rounds of
+the same tool, and none of them comes out ahead consistently.
+
+curl also reports when each phase of a request ends. Medians over the 30 HTTP/1.1 requests: DNS 0.023 s,
+TCP connected 0.046 s, TLS done 0.185 s, first byte 0.311 s, finished 0.653 s. Almost half of the request
+passes before the first byte of the file arrives. Counting only the transfer of the body gives about
+245 Mbit/s, twice what both tools report. `download-speed` does not split a request into these phases yet,
+and that is the most useful thing to add next.
+
+The curl side of the comparison:
+
+```bash
+for i in $(seq 10); do
+  curl -s -o /dev/null --http1.1 -H 'Accept-Encoding: identity' -H 'Cache-Control: no-cache' \
+    -w '%{size_download} %{time_total} %{time_starttransfer}\n' https://proof.ovh.net/files/10Mb.dat
+done
+```
+
 ## Timeouts
 
 `--timeout` applies to each socket operation (connecting, waiting for the response, reading a chunk), not
